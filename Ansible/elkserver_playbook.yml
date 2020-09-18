@@ -1,0 +1,42 @@
+---
+  - hosts: elk
+    become: True
+    tasks:
+
+    - sysctl:
+        name: vm.max_map_count
+        value: '262144'
+        state: present
+
+    - name: Install docker.io
+      apt:
+        update_cache: yes
+        name: docker.io
+        state: present #change to absent to remove
+
+    - name: Enable docker service
+      service:
+        name: docker
+        enabled: yes
+
+
+    - name: Install python3-pip
+      apt:
+        name: python3-pip
+        state: present
+
+    - name: Install docker with pip
+      pip:
+       name: docker
+       state: present
+
+    - name: Download and launch the elk container
+      docker_container:
+        name: elk
+        image: sebp/elk:761
+        state: started
+        restart_policy: always
+        published_ports:
+          - 5601:5601
+          - 9200:9200
+          - 5044:5400

@@ -1,0 +1,98 @@
+---
+  - name: Webserver configuration -> Docker, PIP3, DVWA container, filebeat, and metricbeat
+    hosts: webservers
+    become: true
+    tasks:
+
+    # Combining webserver-playbook.yml, filebeat-playbook.yml,
+    # and metricbeat-playbook.yml to facilitate consistent
+    # configuration of all web servers
+
+    # Install and configure docker and pip3 for python3
+
+    - name: Install docker.io
+      apt:
+        update_cache: yes
+        name: docker.io
+        state: present #change to absent to remove
+
+    - name: Enable docker service
+      service:
+        name: docker
+        enabled: yes
+
+    - name: Install python3-pip
+      apt:
+        name: python3-pip
+        state: present
+
+    - name: Install docker with pip
+      pip:
+       name: docker
+       state: present
+
+    - name: Download and launch a docker web container
+      docker_container:
+        name: dvwa
+        image: cyberxsecurity/dvwa
+        state: started
+        restart_policy: always
+        published_ports: 80:80
+
+    # filebeat installation
+
+    # Downloading of filebeat is handled by get_url. The following command module is left for reference.
+    # - name: Downloading filebeat
+    #   command: curl -L -O https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-7.4.0-amd64.deb
+
+    # Downloading filebeat
+    - name: Downloading filebeat
+      get_url:
+        url: https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-7.4.0-amd64.deb
+        dest: ~/
+
+    - name: Installing filebeat
+      command: dpkg -i /home/azadmin/filebeat-7.4.0-amd64.deb
+
+    - name: Copying filebeat-configuration.yml to target VMs
+      copy:
+        src: /etc/ansible/files/filebeat-configuration.yml
+        dest: /etc/filebeat/filebeat-configuration.yml
+
+    - name: Enabling filebeat modules
+      command: filebeat modules enable system
+
+    - name: Setting up filebeat
+      command: filebeat setup
+
+    - name: Starting filebeat service
+      command: service filebeat start
+
+    # metric beat installation
+
+    # Downloading metricbeat is handled by get_url The following command module is left for reference.
+    # - name: Downloading metricbeat
+    #   command: curl -L -O https://artifacts.elastic.co/downloads/beats/metricbeat/metricbeat-7.4.0-amd64.deb
+
+    # Downloading metricbeat
+    - name: Downloading metricbeat
+      get_url:
+        url: https://artifacts.elastic.co/downloads/beats/metricbeat/metricbeat-7.4.0-amd64.deb
+        dest: ~/
+
+    - name: Installing metricbeat
+      command: dpkg -i /home/azadmin/metricbeat-7.4.0-amd64.deb
+
+    - name: Copying metricbeat-configuration.yml to target VMs
+      copy:
+        src: /etc/ansible/files/metricbeat-configuration.yml
+        dest: /etc/metricbeat/metricbeat.yml
+
+    - name: Enabling metricbeat modules
+      command: metricbeat modules enable docker
+
+    - name: Setting up metricbeat
+      command: metricbeat setup
+
+    - name: Starting metricbeat service
+      command: service metricbeat start
